@@ -10,25 +10,34 @@ import requests
 # --- Page Config ---
 st.set_page_config(page_title="Flexa", page_icon="🍑", layout="wide")
 
-# --- Custom CSS for Gradient Background ---
-st.markdown(
-    """
-    <style>
-        body {
-            background: linear-gradient(135deg, #1f1c2c, #928dab);
-            margin: 0;
-            height: 100vh;
-            width: 100vw;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -1;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Ensure database folder exists
+os.makedirs("./database", exist_ok=True)
 
+# Function to load existing user data
+def load_user_data():
+    file_path = "./database/user_profiles.json"
+    if os.path.exists(file_path):
+        with open(file_path, "r") as file:
+            try:
+                return json.load(file)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+# Function to save user data
+def save_user_data(user_data):
+    file_path = "./database/user_profiles.json"
+    
+    existing_data = load_user_data()
+    
+    # Auto-increment user ID
+    new_user_id = len(existing_data) + 1
+    existing_data[new_user_id] = user_data
+    
+    with open(file_path, "w") as file:
+        json.dump(existing_data, file, indent=4)
+    
+    return new_user_id
 # --- Function to Fetch Lottie Animations ---
 def load_lottie_url(url):
     r = requests.get(url)
@@ -37,50 +46,8 @@ def load_lottie_url(url):
     return r.json()
 
 # --- Lottie Animations ---
-profile_animation = load_lottie_url("https://assets3.lottiefiles.com/packages/lf20_5wXrYB.json")
-trainer_animation = load_lottie_url("https://assets3.lottiefiles.com/private_files/lf30_1vqeqvdd.json")
-diet_animation = load_lottie_url("https://assets4.lottiefiles.com/packages/lf20_hl5n0bwb.json")
 splitwise_animation = load_lottie_url("https://lottie.host/5f97f66c-b96a-493c-9d98-e61c49fce1b3/AEZhJ3cU05.json")
 
-# --- Database Setup ---
-DB_FILE = "splitwise_data.json"
-
-def init_db():
-    if not os.path.exists(DB_FILE):
-        with open(DB_FILE, "w") as f:
-            json.dump({"users": [], "expenses": []}, f)
-
-init_db()
-
-def load_db():
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
-
-def save_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-def add_user(name):
-    data = load_db()
-    user_id = len(data["users"]) + 1
-    data["users"].append({"id": user_id, "name": name})
-    save_db(data)
-
-def get_users():
-    return load_db()["users"]
-
-def add_expense(payer_id, amount, description, participants):
-    data = load_db()
-    data["expenses"].append({
-        "payer_id": payer_id,
-        "amount": amount,
-        "description": description,
-        "participants": participants
-    })
-    save_db(data)
-
-def get_expenses():
-    return load_db()["expenses"]
 
 # --- Sidebar ---
 st.sidebar.title("🔥 **Flexa Navigation**")
@@ -92,16 +59,57 @@ section = st.sidebar.radio("Select a Section:", [
 ])
 
 # --- Main Page ---
-st.title("😂 **Welcome to Flexa!** 🚀")
-st.write("### The ultimate lifestyle app with meme energy! 🔥")
+st.title("**Welcome to Flexa!** 🚀")
+st.write("### Lifestyle SUPER-App with meme energy! 🔥")
 
 if section == "📝 Me, Myself & Flex":
     st.header("📝 Me, Myself & Flex")
     st.write("*Because your profile deserves some gains too!* 😎")
+
+    with st.form("user_profile_form"):
+        st.subheader("👤 Personal Details")
+        name = st.text_input("Full Name", placeholder="Enter your name")
+        email = st.text_input("Email", placeholder="Enter your email")
+
+        st.subheader("🥗 Health & Fitness")
+        dietary_restrictions = st.text_area("Dietary Restrictions", placeholder="Any allergies or diet plans?")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            height = st.number_input("Height (cm)", min_value=50, max_value=250, step=1)
+        with col2:
+            weight = st.number_input("Weight (kg)", min_value=20, max_value=300, step=1)
+
+        st.subheader("🎯 Goals & Activity")
+        goal_options = ["Bulking 🏋️", "Cutting 🔥", "Lean Bulk 💪", "Maintain ⚖️", "Flexibility & Mobility 🤸"]
+        goal = st.selectbox("Fitness Goal", goal_options)
+
+        activity_options = ["Sedentary (little to no exercise)", "Lightly active (1-3 days/week)", 
+                            "Moderately active (3-5 days/week)", "Very active (6-7 days/week)", 
+                            "Super active (Athlete level)"]
+        activity_level = st.selectbox("Activity Level", activity_options)
+
+        submit_button = st.form_submit_button("Save Profile", type="primary")
+
+    if submit_button:
+        user_data = {
+            "name": name,
+            "email": email,
+            "dietary_restrictions": dietary_restrictions,
+            "height": height,
+            "weight": weight,
+            "goal": goal,
+            "activity_level": activity_level
+        }
+
+        user_id = save_user_data(user_data)
+        st.success(f"Profile Saved! 🚀 (User ID: {user_id})")
     
 elif section == "💪 Flexa-Tron 3000":
     st.header("💪 Flexa-Tron 3000")
     st.write("*An AI trainer that doesn’t skip leg day!* 💪🔥")
+
+    st.sidebar.info("💡 Stay consistent! Track your workouts and diet to maximize results.")
     
 elif section == "🥑 Munch & Crunch":
     st.header("🥑 Munch & Crunch")
@@ -114,69 +122,30 @@ elif section == "💸 Flexa":
         st.header("💸 Flexa - Bill Splitting System")
 
         # Toggle for showing file uploader
-        scan_bill = st.button("🧾 Scan Bill with FlexaAI", key="primary")
+        scan_bill = st.button("🧾 Scan Bill with FlexaAI", type="primary")
 
         if scan_bill:
             uploaded_file = st.file_uploader("📄 Upload your bill image", type=["png", "jpg", "jpeg"])
 
-            if uploaded_file:
-                image_path = os.path.join("./uploads", uploaded_file.name)
-                os.makedirs("./uploads", exist_ok=True)
-
-                # Save the uploaded file
-                with open(image_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-
-                # Show uploaded image
-                st.image(image_path, caption="🧾 Uploaded Bill", use_column_width=True)
-
-                # Process Bill with Gemini AI
-                st.write("🤖 Processing with FlexaAI...")
-                from flexa_bill import process_with_gemini  # Import function dynamically
-                structured_data = process_with_gemini(image_path)
-
-                # Display structured JSON output
-                st.subheader("📊 Extracted Bill Details")
-                st.json(structured_data)
-
-                # Save output as JSON file in /database
-                database_path = "./database"
-                os.makedirs(database_path, exist_ok=True)  # Ensure directory exists
-                json_file_path = os.path.join(database_path, f"bill_{uploaded_file.name}.json")
-
-                with open(json_file_path, "w") as json_file:
-                    json.dump(structured_data, json_file, indent=4)
-
-                st.success(f"✅ Data extracted and saved in `{json_file_path}`!")
-
-        st.subheader("👥 Manage Users")
-        new_user = st.text_input("Add a new user")
-        if st.button("➕ Add User"):
-            add_user(new_user)
-            st.success(f"User {new_user} added! 🎉")
-
-        users = get_users()
-        user_dict = {user["id"]: user["name"] for user in users}
-
-        st.subheader("💰 Add Expense")
-        selected_payer = st.selectbox("Who paid?", options=user_dict.keys(), format_func=lambda x: user_dict[x])
-        amount = st.number_input("Amount", min_value=0.01, format="%.2f")
-        description = st.text_input("Description")
-        selected_participants = st.multiselect("Who participated?", options=user_dict.keys(), format_func=lambda x: user_dict[x])
-
-        if st.button("💸 Add Expense"):
-            add_expense(selected_payer, amount, description, selected_participants)
-            st.success("Expense added! ✅")
-
-        st.subheader("📊 Expense History")
-        expenses = get_expenses()
-        for expense in expenses:
-            payer_name = user_dict.get(expense["payer_id"], "Unknown")
-            participants = ", ".join([user_dict.get(uid, "Unknown") for uid in expense["participants"]])
-            st.write(f"💰 {payer_name} paid **${expense['amount']:.2f}** for **{expense['description']}** | Shared with: {participants}")
 
     with col2:
         st_lottie(splitwise_animation, height=300, key="splitwise")
+
+# Footer for all pages - Centered
+st.markdown("""
+    <style>
+        .footer {
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            padding: 0px;
+            font-size: 16px;
+        }
+    </style>
+    <div class='footer'>
+        Made by Flexa with ❣️
+    </div>
+""", unsafe_allow_html=True) 
 
 
 
