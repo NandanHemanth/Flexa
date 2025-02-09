@@ -164,7 +164,7 @@ if section == "📝 Me, Myself & Flex":
     st.title("**Welcome to Flexa!** 🚀")
     st.write("### If Life was easy, You wouldn’t need Us!!")
     st.header("📝 Me, Myself & Flex")
-    # st.write("*Because your profile deserves some gains too!* 😎")
+    st.sidebar.info("Don’t just create a profile—create a masterpiece of gains!")
 
     with st.form("user_profile_form"):
         st.subheader("👤 Personal Details")
@@ -254,6 +254,7 @@ elif section == "💪 Flexa-Tron 3000":
     with col1:
         st.header("💪 Flexa-Tron 3000 - AI Trainer")
         st.write("🏋️ **AI-powered workout tracker. Track reps, form, and calories!**")
+        st.sidebar.info("This AI trainer doesn’t just lift weights, it lifts your fitness game")
 
         # Select exercise and number of reps
         exercise_options = ["Bicep Curls", "Yoga", "pilates", "Squats", "Push-ups", "Lunges", "Deadlifts", "Planks", "Bench Press"]
@@ -268,7 +269,7 @@ elif section == "💪 Flexa-Tron 3000":
 
             if result["success"]:
                 st.success(f"✅ Workout Completed: {result['reps']} reps | Calories Burned: {result['calories']} kcal")
-                st.image(result["chart_path"], caption="📈 Form Score Chart", use_column_width=True)
+                st.image(result["chart_path"], caption="📈 Form Score Chart", use_container_width=True)
             else:
                 st.error(result["message"])
 
@@ -298,7 +299,7 @@ elif section == "🥑 Munch & Crunch":
     with col1:
         st.header("🥑 Munch & Crunch")
         st.write("*Diet so good, even Gordon Ramsay won’t yell at you!* 🍔🥗")
-        st.sidebar.info("Macros or McNuggets? Why not both? 🍔🥗.")
+        st.sidebar.info("You’re just one salad away from a flex-worthy diet! 🥗")
 
         if st.button("Build my lifestyle with FlexAI", type="primary"):
             main()  # Calls the function from analytics.py
@@ -311,6 +312,7 @@ elif section == "💸 Flexa":
 
     with col1:
         st.header("💸 Flexa - Bill Splitting System")
+        st.sidebar.info("Why split the bill when you can split a pun? Who’s paying for the laughs?")
 
         # File uploader outside of button click
         uploaded_file = st.file_uploader("📄 Upload your bill image", type=["png", "jpg", "jpeg"])
@@ -500,6 +502,7 @@ elif section == "💸 Flexa":
 #         st.write(df_display.to_html(escape=False, index=False), unsafe_allow_html=True)
 #     else:
 #         st.info("No data uploaded yet.")
+
 
 # Footer for all pages - Centered
 st.markdown("""
