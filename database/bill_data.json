@@ -17,10 +17,16 @@
             "price": 1.0
         }
     ],
-    "taxes": {
-        "food_tax": 2.9,
-        "sales_tax": 1.28
-    },
+    "taxes": [
+        {
+            "tax_name": "Food Tax",
+            "amount": 2.9
+        },
+        {
+            "tax_name": "Sales Tax",
+            "amount": 1.28
+        }
+    ],
     "tips": null,
-    "bill_id": 4
+    "bill_id": 1
 }

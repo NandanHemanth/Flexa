@@ -1,6 +1,6 @@
 import streamlit as st
-import subprocess
-import time
+import pandas as pd
+import matplotlib.pyplot as plt
 import json
 import os
 from streamlit_lottie import st_lottie
@@ -124,17 +124,6 @@ if section == "📝 Me, Myself & Flex":
         user_id = save_user_data(user_data)
         st.success(f"Profile Saved! 🚀 (User ID: {user_id})")
     
-elif section == "💪 Flexa-Tron 3000":
-    st.header("💪 Flexa-Tron 3000")
-    st.write("*An AI trainer that doesn’t skip leg day!* 💪🔥")
-
-    st.sidebar.info("💡 Stay consistent! Track your workouts and diet to maximize results.")
-    
-elif section == "🥑 Munch & Crunch":
-    st.header("🥑 Munch & Crunch")
-    st.write("*Diet so good, even Gordon Ramsay won’t yell at you!* 🍔🥗")
-    st.sidebar.info("Macros or McNuggets? Why not both? 🍔🥗.")
-    
 elif section == "💸 Flexa":
     col1, col2 = st.columns([2, 1])
 
@@ -153,10 +142,115 @@ elif section == "💸 Flexa":
 
                     if structured_data:
                         st.success("Bill processed successfully! 🎉")
-                        # st.json(structured_data)  # Display structured output
-                    else:
-                        st.error("Failed to process bill. Please try again.")
+                        with open("./database/bill_data.json", "w") as json_file:
+                            json.dump(structured_data, json_file, indent=4)
 
+    # Load bill data if available
+    bill_data_path = "./database/bill_data.json"
+    if os.path.exists(bill_data_path):
+        with open(bill_data_path, "r") as file:
+            bill_data = json.load(file)
+
+        if bill_data:
+            st.subheader(f"💰 Split Bill: {bill_data['bill_id']} - {bill_data['bill_name']}")
+
+            # Step 1: Choose Split Type
+            split_type = st.radio("📊 How do you want to split?", ["Split Equally", "Customize"])
+
+            if split_type == "Split Equally":
+                # Step 2: Split Bill Equally
+                users = ["Kayla", "Nandan", "Deepak", "Lily"]
+                
+                # ✅ Calculate total bill including taxes
+                total_amount = sum(item["price"] * item["quantity"] for item in bill_data["items"]) 
+                total_amount += sum(tax["amount"] for tax in bill_data["taxes"])  # ✅ Fixed tax sum
+
+                equal_split = round(total_amount / len(users), 2)
+
+                split_result = {user: equal_split for user in users}
+
+                st.subheader("💰 Equal Split Breakdown")
+                st.write(f"Each person owes: **${equal_split}**")
+                st.json(split_result)
+
+                # ✅ Display Graph for Equal Split
+                fig, ax = plt.subplots()
+                ax.bar(split_result.keys(), split_result.values(), color=['blue', 'green', 'red', 'purple'])
+                ax.set_ylabel("Amount ($)")
+                ax.set_title("Equal Bill Split Per Person")
+                st.pyplot(fig)
+
+                # ✅ Show in table format
+                df = pd.DataFrame.from_dict(split_result, orient="index", columns=["Amount Owed"])
+                st.table(df)
+
+            else:
+                # Step 2: Select users who participated
+                users = ["Kayla", "Nandan", "Deepak", "Lily"]
+                selected_users = st.multiselect("👥 Who ate this bill?", users)
+
+                if selected_users:
+                    st.subheader("🍽 Assign Items & Share")
+                    item_options = {item["item_name"]: (item["price"], item["quantity"]) for item in bill_data["items"]}
+
+                    # ✅ Calculate total bill before assignments
+                    total_amount = sum(item["price"] * item["quantity"] for item in bill_data["items"]) 
+                    remaining_amount = total_amount  # Track unassigned amount
+
+                    user_shares = {}
+
+                    for user in selected_users:
+                        st.write(f"👤 **{user}**")
+                        selected_item = st.selectbox(f"Item for {user}", list(item_options.keys()), key=f"{user}_item")
+                        max_percentage = item_options[selected_item][1] * 100  # Max % based on item quantity
+
+                        share = st.number_input(
+                            f"{user}'s % share", min_value=0, max_value=max_percentage, step=1, key=f"{user}_share"
+                        )
+
+                        user_shares[user] = {"item": selected_item, "share": share}
+                        item_price = item_options[selected_item][0] * (share / 100)  # Calculate user’s portion
+
+                        remaining_amount -= item_price  # ✅ Deduct assigned amount
+
+                    # Display remaining amount dynamically
+                    st.subheader(f"💰 Remaining Amount: **${round(remaining_amount, 2)}**")
+
+                    # Ensure all items are accounted for
+                    if remaining_amount > 0:
+                        st.warning("⚠ Some items are unassigned! Ensure all are accounted for.")
+
+                    # Step 3: Tax Splitting Option
+                    tax_split_method = st.radio("🧾 Split Taxes & Tips:", ["Equally", "Proportionally"])
+
+                    # Calculate Split
+                    if st.button("💸 Calculate Split"):
+                        total_taxes = sum(tax["amount"] for tax in bill_data["taxes"])  # ✅ Fixed tax sum issue
+                        split_result = {}
+
+                        for user, data in user_shares.items():
+                            item_cost = item_options[data["item"]][0] * (data["share"] / 100)
+
+                            if tax_split_method == "Equally":
+                                user_taxes = total_taxes / len(selected_users)
+                            else:
+                                user_taxes = (item_cost / total_amount) * total_taxes
+
+                            split_result[user] = round(item_cost + user_taxes, 2)
+
+                        st.subheader("💰 Final Split Breakdown")
+                        st.json(split_result)
+
+                        # ✅ Display Graph for Custom Split
+                        fig, ax = plt.subplots()
+                        ax.bar(split_result.keys(), split_result.values(), color=['blue', 'green', 'red', 'purple'])
+                        ax.set_ylabel("Amount ($)")
+                        ax.set_title("Custom Bill Split Per Person")
+                        st.pyplot(fig)
+
+                        # ✅ Show in table format
+                        df = pd.DataFrame.from_dict(split_result, orient="index", columns=["Amount Owed"])
+                        st.table(df)
 
     with col2:
         st_lottie(splitwise_animation, height=300, key="splitwise")
@@ -176,6 +270,17 @@ st.markdown("""
         Made by Flexa with ❣️
     </div>
 """, unsafe_allow_html=True) 
+
+# Hide Streamlit's default top bar, menu, and footer
+st.markdown("""
+    <style>
+        /* Hide top bar */
+        header {visibility: hidden;}
+
+        /* Hide menu & footer */
+        #MainMenu, footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
 
 
 
