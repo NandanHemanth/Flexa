@@ -47,5 +47,12 @@
         "score": 11.51,
         "calories": 1.0,
         "timestamp": "2025-02-09 00:56:44"
+    },
+    {
+        "exercise_name": "Bicep Curls",
+        "reps": 4,
+        "score": 53.09,
+        "calories": 2.0,
+        "timestamp": "2025-02-09 10:06:05"
     }
 ]

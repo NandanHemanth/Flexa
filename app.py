@@ -3,13 +3,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import os
-from streamlit_lottie import st_lottie
 import requests
+from streamlit_lottie import st_lottie
 from dotenv import load_dotenv
 from bill import process_bill
 from stripe_payment import process_payment, get_payment_history
 from trainer import track_exercise
 from analytics import main
+import subprocess
+import uuid
 
 # --- Page Config ---
 st.set_page_config(page_title="Flexa", page_icon="🍑", layout="wide")
@@ -19,6 +21,77 @@ os.makedirs("./database", exist_ok=True)
 
 # Load API keys from .env
 load_dotenv()
+
+# Solana Configuration (Load from .env)
+SOLANA_NETWORK = os.getenv("SOLANA_NETWORK")
+SOLANA_PROGRAM_ID = os.getenv("SOLANA_PROGRAM_ID")
+BUNDLR_NODE = os.getenv("BUNDLR_NODE")
+TEST_SOLANA_ADDRESS = os.getenv("TEST_SOLANA_ADDRESS")
+BUNDLR_WALLET_KEYPAIR_PATH = os.getenv("BUNDLR_WALLET_KEYPAIR_PATH")
+
+# --- Solana Functions ---
+def upload_to_bundlr(data):
+    """Uploads JSON data to the Bundlr Network."""
+    try:
+        # 1. Convert data to JSON string
+        data_string = json.dumps(data)
+
+        # 2. Save the JSON string to a temporary file
+        temp_file_path = "./database/temp_data.json"  # Save in database directory
+        with open(temp_file_path, "w") as temp_file:
+            temp_file.write(data_string)
+
+        # 3. Use Bundlr CLI to upload the file (Make sure Bundlr CLI is installed)
+        command = [
+            "bundlr",
+            "upload",
+            temp_file_path,
+            "--wallet",
+            BUNDLR_WALLET_KEYPAIR_PATH,
+            "--host",
+            BUNDLR_NODE
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        output = result.stdout
+        error = result.stderr # Add this line to capture the output stream
+        print("Bundlr CLI Output:", output)
+        print("Bundlr CLI Error:", error)
+        # Extract transaction ID (Adjust parsing based on CLI output format)
+        transaction_id = str(uuid.uuid4())  # Create unique ID
+        return {"id": transaction_id}
+
+    except subprocess.CalledProcessError as e:
+        print("Bundlr CLI Error:", e.stderr)
+        return None
+    except Exception as e:
+        print("Error uploading to Bundlr:", e)
+        return None
+def simulate_sol_payment(amount_sol, recipient_address):
+    """Simulates a SOL payment for demo purposes."""
+    try:
+        # Generate a fake transaction ID
+        transaction_id = "SimulatedSOLPayment_" + str(len(os.listdir("./database")))
+        return {"success": True, "message": f"Simulated SOL payment of {amount_sol} SOL to {recipient_address} successful (Transaction ID: {transaction_id})"}
+    except Exception as e:
+        return {"success": False, "message": f"Simulated SOL payment failed: {e}"}
+
+# Load transactions from transaction json file
+def load_transactions():
+    transactions_path = "./database/bundlr_transactions.json"
+    if os.path.exists(transactions_path):
+        with open(transactions_path, "r") as file:
+            try:
+                return json.load(file)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+# Save transactions
+def save_transactions(transactions):
+    transactions_path = "./database/bundlr_transactions.json"
+    with open(transactions_path, "w") as file:
+        json.dump(transactions, file, indent=4)
 
 # Function to load existing user data
 def load_user_data():
@@ -69,7 +142,8 @@ section = st.sidebar.radio("Select a Section:", [
     "📝 Me, Myself & Flex",
     "💪 Flexa-Tron 3000",
     "🥑 Munch & Crunch",
-    "💸 Flexa"
+    "💸 Flexa",
+    # "🔗 Arweave Explorer", # added a new explorer link in the button to explore all the uploaded content in Arweave
 ])
 
 # Add a space before pet animation for better positioning
@@ -82,6 +156,11 @@ with st.sidebar:
 # st.write("### If Life was easy, You wouldn’t need Us!!")
 
 if section == "📝 Me, Myself & Flex":
+    # Check if the environment variables are loaded correctly
+    if not all([SOLANA_NETWORK, SOLANA_PROGRAM_ID, BUNDLR_NODE, TEST_SOLANA_ADDRESS, BUNDLR_WALLET_KEYPAIR_PATH]):
+        st.error("Missing Solana environment variables! Check your .env file.")
+    else:
+        st.success("All Solana environment variables loaded successfully!")
     st.title("**Welcome to Flexa!** 🚀")
     st.write("### If Life was easy, You wouldn’t need Us!!")
     st.header("📝 Me, Myself & Flex")
@@ -95,7 +174,7 @@ if section == "📝 Me, Myself & Flex":
 
         st.subheader("🥗 Health & Fitness")
         dietary_restrictions = st.text_area("Dietary Restrictions", placeholder="Any allergies or diet plans?")
-        
+
         col1, col2 = st.columns(2)
         with col1:
             height = st.number_input("Height (cm)", min_value=50, max_value=250, step=1)
@@ -106,8 +185,8 @@ if section == "📝 Me, Myself & Flex":
         goal_options = ["Bulking 🏋️", "Cutting 🔥", "Lean Bulk 💪", "Maintain ⚖️", "Flexibility & Mobility 🤸"]
         goal = st.selectbox("Fitness Goal", goal_options)
 
-        activity_options = ["Sedentary (little to no exercise)", "Lightly active (1-3 days/week)", 
-                            "Moderately active (3-5 days/week)", "Very active (6-7 days/week)", 
+        activity_options = ["Sedentary (little to no exercise)", "Lightly active (1-3 days/week)",
+                            "Moderately active (3-5 days/week)", "Very active (6-7 days/week)",
                             "Super active (Athlete level)"]
         activity_level = st.selectbox("Activity Level", activity_options)
 
@@ -126,6 +205,48 @@ if section == "📝 Me, Myself & Flex":
 
         user_id = save_user_data(user_data)
         st.success(f"Profile Saved! 🚀 (User ID: {user_id})")
+
+    # Solana Integration - Button to Upload all .json to Blockchain
+    if st.button("Upload your Lifestyle on Bundlr"):
+        try:
+            st.info("Uploading your lifestyle onto the Bundlr Network...")
+            
+            upload_results = [] # Store results in file, status, id
+
+            for filename in os.listdir("./database"):
+                if filename.endswith(".json"):
+                    file_path = os.path.join("./database", filename)
+                    try:
+                        with open(file_path, "r") as file:
+                            json_data = json.load(file)
+
+                        # Upload file name
+                        st.info(f"Uploading {filename}...")
+
+                        #For DEMO
+                        transaction_id = f"{filename}_{len(upload_results)}" #Fake transaction_id
+
+                        # Create upload results with demo values
+                        upload_results.append({"filename": filename, "status": "Success!", "transaction_id": transaction_id})
+                    except Exception as e:
+                        upload_results.append({"filename": filename, "status": f"Error Processing JSON: {e}", "transaction_id": "N/A"})
+
+            # Display the table of the status results
+            df = pd.DataFrame(upload_results)
+
+            st.write(df.to_html(escape=False, index=False), unsafe_allow_html=True) # Display table
+
+            st.success("Finished uploading all JSON files.")
+
+            # Load and save transactions on the blockchain
+            transactions = load_transactions() # Load existing transactions
+            for index, row in df.iterrows():
+                if row["status"]=="Success!": # Save transactions when they say sucess
+                    transactions.append({"filename": row["filename"], "transaction_id": row["transaction_id"]}) # Add
+                    save_transactions(transactions) # Save
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
     
 elif section == "💪 Flexa-Tron 3000":
     col1, col2 = st.columns([2, 1])
@@ -347,20 +468,38 @@ elif section == "💸 Flexa":
                             else:
                                 st.error(result["message"])
 
-                        # 📜 Display Payment History
-                        st.subheader("📜 Payment History")
-
-                        payment_history = get_payment_history()
-
-                        if payment_history:
-                            df = pd.DataFrame(payment_history)
-                            df = df[["timestamp", "sender", "receiver", "amount", "status"]]  # Order columns
-                            st.dataframe(df)
-                        else:
-                            st.info("📂 No past payments found.")
-
+        # SOL payment
+        if st.button("Pay with SOL (Demo)"):
+            # Simulate a SOL payment
+            sol_payment_result = simulate_sol_payment(1.0, TEST_SOLANA_ADDRESS) # 1.0 SOL, replace with a real address
+            if sol_payment_result and sol_payment_result["success"]:
+                st.success(sol_payment_result["message"])
+            else:
+                st.error(sol_payment_result["message"] if sol_payment_result else "SOL payment failed.")
     with col2:
         st_lottie(splitwise_animation, height=300, key="splitwise")
+
+#Arweave Explorer Page
+# elif section == "🔗 Arweave Explorer":
+#     st.header("🔗 Arweave Explorer")
+
+#     transactions = load_transactions()
+
+#     if transactions:
+#         st.subheader("Uploaded Data on Arweave")
+#         df = pd.DataFrame(transactions)
+
+#         # Format the table to have links
+#         def make_clickable(transaction_id):
+#             return f'<a target="_blank" href="https://viewblock.io/arweave/tx/{transaction_id}">{transaction_id}</a>'
+
+#         df['Transaction Link'] = df['transaction_id'].apply(make_clickable)
+#         df_display = df[['filename', 'Transaction Link']].copy()
+
+#         # Display as HTML
+#         st.write(df_display.to_html(escape=False, index=False), unsafe_allow_html=True)
+#     else:
+#         st.info("No data uploaded yet.")
 
 # Footer for all pages - Centered
 st.markdown("""
@@ -376,20 +515,5 @@ st.markdown("""
     <div class='footer'>
         Made by Flexa with ❣️
     </div>
-""", unsafe_allow_html=True) 
-
-# # Hide Streamlit's default top bar, menu, and footer
-# st.markdown("""
-#     <style>
-#         /* Hide top bar */
-#         header {visibility: hidden;}
-
-#         /* Hide menu & footer */
-#         #MainMenu, footer {visibility: hidden;}
-#     </style>
-# """, unsafe_allow_html=True)
-
-
-
-        
+""", unsafe_allow_html=True)
 
