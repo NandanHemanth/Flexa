@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from bill import process_bill
 from stripe_payment import process_payment, get_payment_history
 from trainer import track_exercise
+from analytics import main
 
 # --- Page Config ---
 st.set_page_config(page_title="Flexa", page_icon="🍑", layout="wide")
@@ -134,7 +135,7 @@ elif section == "💪 Flexa-Tron 3000":
         st.write("🏋️ **AI-powered workout tracker. Track reps, form, and calories!**")
 
         # Select exercise and number of reps
-        exercise_options = ["Bicep Curls", "Squats", "Push-ups", "Lunges", "Deadlifts", "Planks", "Bench Press"]
+        exercise_options = ["Bicep Curls", "Yoga", "pilates", "Squats", "Push-ups", "Lunges", "Deadlifts", "Planks", "Bench Press"]
         selected_exercise = st.selectbox("🏋️ Choose an Exercise:", exercise_options)
         
         rep_count = st.number_input("🔢 Number of Reps:", min_value=1, step=1, value=10)
@@ -168,7 +169,21 @@ elif section == "💪 Flexa-Tron 3000":
                 st.info("📂 No past workouts found.")
 
     with col2:
-        st_lottie(posture, height=300, key="posture")# Display posture animation
+        st_lottie(girl_1T, height=300, key="posture")# Display posture animation
+
+elif section == "🥑 Munch & Crunch":
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.header("🥑 Munch & Crunch")
+        st.write("*Diet so good, even Gordon Ramsay won’t yell at you!* 🍔🥗")
+        st.sidebar.info("Macros or McNuggets? Why not both? 🍔🥗.")
+
+        if st.button("Build my lifestyle with FlexAI", type="primary"):
+            main()  # Calls the function from analytics.py
+
+    with col2:
+        st_lottie(shopping, height=300, key="shopping")
 
 elif section == "💸 Flexa":
     col1, col2 = st.columns([2, 1])
