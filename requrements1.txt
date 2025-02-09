@@ -18,3 +18,4 @@ py-cpuinfo==9.0.0
 watchdog==3.0.0
 plotly==5.18.0
 streamlit-lottie
+tabulate

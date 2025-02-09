@@ -1,0 +1,42 @@
+[
+    {
+        "Day": "Monday",
+        "Breakfast": "Oatmeal with berries",
+        "Lunch": "Grilled chicken salad",
+        "Snack": "Apple with peanut butter",
+        "Dinner": "Baked salmon with quinoa",
+        "Workout": "Full-body strength training"
+    },
+    {
+        "Day": "Tuesday",
+        "Breakfast": "Greek yogurt with granola",
+        "Lunch": "Turkey and avocado sandwich on whole-wheat bread",
+        "Snack": "Baby carrots with hummus",
+        "Dinner": "Lentil soup with whole-wheat bread",
+        "Workout": "Cardio and flexibility"
+    },
+    {
+        "Day": "Wednesday",
+        "Breakfast": "Scrambled eggs with spinach",
+        "Lunch": "Leftover lentil soup",
+        "Snack": "Banana with almond butter",
+        "Dinner": "Chicken stir-fry with brown rice",
+        "Workout": "Active recovery or rest"
+    },
+    {
+        "Day": "Thursday",
+        "Breakfast": "Smoothie with fruit and vegetables",
+        "Lunch": "Tuna salad sandwich on whole-wheat bread",
+        "Snack": "Hard-boiled egg",
+        "Dinner": "Vegetarian chili with cornbread",
+        "Workout": "Lower body strength training"
+    },
+    {
+        "Day": "Friday",
+        "Breakfast": "Whole-wheat toast with avocado",
+        "Lunch": "Leftover vegetarian chili",
+        "Snack": "Orange slices",
+        "Dinner": "Baked chicken breast with roasted vegetables",
+        "Workout": "Yoga and core workouts"
+    }
+]
