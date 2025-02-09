@@ -7,6 +7,8 @@ from streamlit_lottie import st_lottie
 import requests
 from dotenv import load_dotenv
 from bill import process_bill
+import stripe
+import datetime
 
 # --- Page Config ---
 st.set_page_config(page_title="Flexa", page_icon="🍑", layout="wide")
@@ -185,6 +187,14 @@ elif section == "💸 Flexa":
                 st.table(df)
 
             else:
+                # Ensure payment history file exists
+                os.makedirs("./database", exist_ok=True)
+                payment_history_path = "./database/payment_history.json"
+
+                if not os.path.exists(payment_history_path):
+                    with open(payment_history_path, "w") as file:
+                        json.dump([], file, indent=4)
+
                 # Step 2: Select users who participated
                 users = ["Kayla", "Nandan", "Deepak", "Lily"]
                 selected_users = st.multiselect("👥 Who ate this bill?", users)
@@ -252,6 +262,76 @@ elif section == "💸 Flexa":
                         df = pd.DataFrame.from_dict(split_result, orient="index", columns=["Amount Owed"])
                         st.table(df)
 
+                        # Load Stripe API keys
+                        stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+                        # Define test users (replace with dynamic user creation)
+                        users = {
+                            "Kayla": "acct_test1",
+                            "Nandan": "acct_test2",
+                            "Deepak": "acct_test3",
+                            "Lily": "acct_test4"
+                        }
+
+                        st.subheader("💳 Send Payment via Stripe")
+
+                        # Select sender & receiver
+                        sender = st.selectbox("🧑‍💼 Who is paying?", list(users.keys()))
+                        receiver = st.selectbox("🎯 Who is receiving the payment?", [u for u in users.keys() if u != sender])
+
+                        # Select amount to pay
+                        amount = st.number_input("💰 Enter Amount to Pay ($)", min_value=1.0, step=0.01)
+
+                        if st.button("💸 Pay Now with Stripe"):
+                            try:
+                                # Create a transfer from sender to receiver
+                                payment = stripe.Transfer.create(
+                                    amount=int(amount * 100),  # Convert to cents
+                                    currency="usd",
+                                    destination=users[receiver],
+                                    description=f"Payment from {sender} to {receiver} via Flexa"
+                                )
+
+                                # Store Payment in JSON History
+                                payment_data = {
+                                    "transaction_id": payment.id,
+                                    "timestamp": str(datetime.datetime.now()),
+                                    "sender": sender,
+                                    "receiver": receiver,
+                                    "amount": amount,
+                                    "status": "Completed"
+                                }
+
+                                # Read existing history & update
+                                with open(payment_history_path, "r") as file:
+                                    history = json.load(file)
+                                
+                                history.append(payment_data)
+
+                                # Save updated history
+                                with open(payment_history_path, "w") as file:
+                                    json.dump(history, file, indent=4)
+
+                                st.success(f"✅ Payment of ${amount} from {sender} to {receiver} was successful!")
+                                st.write(f"🔗 [View Payment](https://dashboard.stripe.com/test/payments/{payment.id})")
+
+                            except stripe.error.StripeError as e:
+                                st.error(f"⚠ Payment failed: {str(e)}")
+
+                        st.subheader("📜 Payment History")
+
+                        # Load and Display Payment History
+                        if os.path.exists(payment_history_path):
+                            with open(payment_history_path, "r") as file:
+                                payment_history = json.load(file)
+
+                            if payment_history:
+                                df = pd.DataFrame(payment_history)
+                                df = df[["timestamp", "sender", "receiver", "amount", "status"]]  # Order columns
+                                st.dataframe(df)
+                            else:
+                                st.info("📂 No past payments found.")
+
     with col2:
         st_lottie(splitwise_animation, height=300, key="splitwise")
 
@@ -271,16 +351,16 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True) 
 
-# Hide Streamlit's default top bar, menu, and footer
-st.markdown("""
-    <style>
-        /* Hide top bar */
-        header {visibility: hidden;}
+# # Hide Streamlit's default top bar, menu, and footer
+# st.markdown("""
+#     <style>
+#         /* Hide top bar */
+#         header {visibility: hidden;}
 
-        /* Hide menu & footer */
-        #MainMenu, footer {visibility: hidden;}
-    </style>
-""", unsafe_allow_html=True)
+#         /* Hide menu & footer */
+#         #MainMenu, footer {visibility: hidden;}
+#     </style>
+# """, unsafe_allow_html=True)
 
 
 
