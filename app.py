@@ -7,8 +7,8 @@ from streamlit_lottie import st_lottie
 import requests
 from dotenv import load_dotenv
 from bill import process_bill
-import stripe
-import datetime
+from stripe_payment import process_payment, get_payment_history
+from trainer import track_exercise
 
 # --- Page Config ---
 st.set_page_config(page_title="Flexa", page_icon="🍑", layout="wide")
@@ -126,6 +126,50 @@ if section == "📝 Me, Myself & Flex":
         user_id = save_user_data(user_data)
         st.success(f"Profile Saved! 🚀 (User ID: {user_id})")
     
+elif section == "💪 Flexa-Tron 3000":
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.header("💪 Flexa-Tron 3000 - AI Trainer")
+        st.write("🏋️ **AI-powered workout tracker. Track reps, form, and calories!**")
+
+        # Select exercise and number of reps
+        exercise_options = ["Bicep Curls", "Squats", "Push-ups", "Lunges", "Deadlifts", "Planks", "Bench Press"]
+        selected_exercise = st.selectbox("🏋️ Choose an Exercise:", exercise_options)
+        
+        rep_count = st.number_input("🔢 Number of Reps:", min_value=1, step=1, value=10)
+
+        # Start Workout Button
+        if st.button("🎥 Start Workout"):
+            with st.spinner("Tracking your workout..."):
+                result = track_exercise(selected_exercise, rep_count)
+
+            if result["success"]:
+                st.success(f"✅ Workout Completed: {result['reps']} reps | Calories Burned: {result['calories']} kcal")
+                st.image(result["chart_path"], caption="📈 Form Score Chart", use_column_width=True)
+            else:
+                st.error(result["message"])
+
+        # 📜 Display Workout History
+        st.subheader("📜 Workout History")
+
+        # Load workout history from JSON
+        workout_history_path = "./database/workout_history.json"
+        
+        if os.path.exists(workout_history_path):
+            with open(workout_history_path, "r") as file:
+                workout_history = json.load(file)
+
+            if workout_history:
+                df = pd.DataFrame(workout_history)
+                df = df[["timestamp", "exercise_name", "reps", "score", "calories"]]  
+                st.dataframe(df)
+            else:
+                st.info("📂 No past workouts found.")
+
+    with col2:
+        st_lottie(posture, height=300, key="posture")# Display posture animation
+
 elif section == "💸 Flexa":
     col1, col2 = st.columns([2, 1])
 
@@ -262,9 +306,6 @@ elif section == "💸 Flexa":
                         df = pd.DataFrame.from_dict(split_result, orient="index", columns=["Amount Owed"])
                         st.table(df)
 
-                        # Load Stripe API keys
-                        stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
                         # Define test users (replace with dynamic user creation)
                         users = {
                             "Kayla": "acct_test1",
@@ -283,54 +324,25 @@ elif section == "💸 Flexa":
                         amount = st.number_input("💰 Enter Amount to Pay ($)", min_value=1.0, step=0.01)
 
                         if st.button("💸 Pay Now with Stripe"):
-                            try:
-                                # Create a transfer from sender to receiver
-                                payment = stripe.Transfer.create(
-                                    amount=int(amount * 100),  # Convert to cents
-                                    currency="usd",
-                                    destination=users[receiver],
-                                    description=f"Payment from {sender} to {receiver} via Flexa"
-                                )
+                            result = process_payment(sender, receiver, amount)
 
-                                # Store Payment in JSON History
-                                payment_data = {
-                                    "transaction_id": payment.id,
-                                    "timestamp": str(datetime.datetime.now()),
-                                    "sender": sender,
-                                    "receiver": receiver,
-                                    "amount": amount,
-                                    "status": "Completed"
-                                }
+                            if result["success"]:
+                                st.success(result["message"])
+                                st.write(f"🔗 [View Payment](https://dashboard.stripe.com/test/payments/{result['payment_id']})")
+                            else:
+                                st.error(result["message"])
 
-                                # Read existing history & update
-                                with open(payment_history_path, "r") as file:
-                                    history = json.load(file)
-                                
-                                history.append(payment_data)
-
-                                # Save updated history
-                                with open(payment_history_path, "w") as file:
-                                    json.dump(history, file, indent=4)
-
-                                st.success(f"✅ Payment of ${amount} from {sender} to {receiver} was successful!")
-                                st.write(f"🔗 [View Payment](https://dashboard.stripe.com/test/payments/{payment.id})")
-
-                            except stripe.error.StripeError as e:
-                                st.error(f"⚠ Payment failed: {str(e)}")
-
+                        # 📜 Display Payment History
                         st.subheader("📜 Payment History")
 
-                        # Load and Display Payment History
-                        if os.path.exists(payment_history_path):
-                            with open(payment_history_path, "r") as file:
-                                payment_history = json.load(file)
+                        payment_history = get_payment_history()
 
-                            if payment_history:
-                                df = pd.DataFrame(payment_history)
-                                df = df[["timestamp", "sender", "receiver", "amount", "status"]]  # Order columns
-                                st.dataframe(df)
-                            else:
-                                st.info("📂 No past payments found.")
+                        if payment_history:
+                            df = pd.DataFrame(payment_history)
+                            df = df[["timestamp", "sender", "receiver", "amount", "status"]]  # Order columns
+                            st.dataframe(df)
+                        else:
+                            st.info("📂 No past payments found.")
 
     with col2:
         st_lottie(splitwise_animation, height=300, key="splitwise")
